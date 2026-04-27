@@ -30,11 +30,15 @@ class MatchStatus(Enum):
 class MatchResult:
     """Result of a completed match"""
     winner: Optional[Team]
+    end_reason: str
     total_turns: int
     red_units_remaining: int
     blue_units_remaining: int
     red_total_damage: int
     blue_total_damage: int
+    red_match_score: float
+    blue_match_score: float
+    timed_out: bool
     duration_seconds: float
     final_state: GameState
 
@@ -263,28 +267,60 @@ class GameManager:
         # Initialize first turn
         self.game_state.start_turn()
         
+        timed_out = False
+        ended_by_turn_limit = False
+
         while not self.game_state.is_game_over and not self._stop_requested:
             if self._pause_requested:
                 self.status = MatchStatus.PAUSED
                 while self._pause_requested and not self._stop_requested:
                     time.sleep(0.1)
                 self.status = MatchStatus.RUNNING
+
+            # Time-based match stop: decide winner by overall team score
+            elapsed = time.time() - self.match_start_time
+            if elapsed >= self.config.match_timeout_seconds:
+                timed_out = True
+                break
             
             self.execute_single_turn()
             
             # Safety: max turns
             if self.game_state.current_turn >= self.config.max_turns:
+                ended_by_turn_limit = True
                 break
         
         # Create result
         duration = time.time() - self.match_start_time
+        red_score = self._calculate_team_score(Team.RED)
+        blue_score = self._calculate_team_score(Team.BLUE)
+
+        if self.game_state.is_game_over:
+            winner = self.game_state.winner
+            end_reason = 'elimination'
+        elif timed_out or ended_by_turn_limit:
+            if red_score > blue_score:
+                winner = Team.RED
+            elif blue_score > red_score:
+                winner = Team.BLUE
+            else:
+                winner = None
+            end_reason = 'timeout_score' if timed_out else 'turn_limit_score'
+        else:
+            winner = self.game_state.winner
+            end_reason = 'stopped'
+
         result = MatchResult(
-            winner=self.game_state.winner,
+            winner=winner,
+            end_reason=end_reason,
             total_turns=self.game_state.current_turn,
             red_units_remaining=len(self.game_state.red_team.alive_units),
             blue_units_remaining=len(self.game_state.blue_team.alive_units),
             red_total_damage=self.game_state.stats['total_damage_red'],
             blue_total_damage=self.game_state.stats['total_damage_blue'],
+            red_match_score=red_score,
+            blue_match_score=blue_score,
+            timed_out=timed_out,
             duration_seconds=duration,
             final_state=self.game_state
         )
@@ -293,6 +329,28 @@ class GameManager:
         self._trigger_game_over(result)
         
         return result
+
+    def _calculate_team_score(self, team: Team) -> float:
+        """Calculate final match score used for timeout/turn-limit winner resolution."""
+        if team == Team.RED:
+            team_state = self.game_state.red_team
+            damage_dealt = self.game_state.stats['total_damage_red']
+            kills = self.game_state.stats['units_killed_red']
+        else:
+            team_state = self.game_state.blue_team
+            damage_dealt = self.game_state.stats['total_damage_blue']
+            kills = self.game_state.stats['units_killed_blue']
+
+        units_alive = len(team_state.alive_units)
+        total_hp = team_state.total_hp
+
+        # Balanced score: survival > kills > pressure dealt.
+        return (
+            units_alive * 1000.0 +
+            total_hp * 2.0 +
+            kills * 300.0 +
+            damage_dealt * 1.0
+        )
     
     def run_match_async(self) -> threading.Thread:
         """Run match in background thread"""

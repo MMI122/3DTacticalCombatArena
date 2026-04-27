@@ -114,6 +114,7 @@ class GameConfig:
     # Game rules
     units_per_team: int = 4
     max_turns: int = 100
+    match_timeout_seconds: float = 180.0
     simultaneous_turns: bool = False
     
     # Match settings
@@ -132,6 +133,7 @@ class GameConfig:
             'audio': self.audio.__dict__,
             'units_per_team': self.units_per_team,
             'max_turns': self.max_turns,
+            'match_timeout_seconds': self.match_timeout_seconds,
             'game_speed': self.game_speed.value
         }
 

@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import Optional, Dict, List, Callable, TYPE_CHECKING
 from dataclasses import dataclass
 import math
+import queue
 
 from ursina import (
     Ursina, Entity, window, camera, color, held_keys, time,
@@ -66,6 +67,7 @@ class GameRenderer:
         # Animation queue
         self.animation_queue: List[Callable] = []
         self.current_animation: Optional[Callable] = None
+        self._pending_events: queue.Queue = queue.Queue()
     
     def initialize(self):
         """Initialize the Ursina application"""
@@ -197,63 +199,11 @@ class GameRenderer:
     
     def _on_action_executed(self, state: GameState, result: ActionResult):
         """Handle action execution visual"""
-        from core.game_state import ActionType
-        
-        unit_view = self.unit_views.get(result.action.unit_id)
-        if not unit_view:
-            return
-        
-        if result.action.action_type == ActionType.MOVE:
-            # Animate movement
-            target = result.action.target_position
-            world_pos = self.battlefield_view.grid_to_world(target.x, target.y)
-            unit_view.move_to(world_pos, duration=0.3)
-        
-        elif result.action.action_type == ActionType.ATTACK:
-            # Animate attack
-            target_view = self.unit_views.get(result.action.target_unit_id)
-            if target_view:
-                unit_view.attack_animation(target_view)
-                
-                # Show damage number
-                if self.effects:
-                    self.effects.show_damage(
-                        target_view.entity.position + Vec3(0, 2, 0),
-                        result.damage_dealt,
-                        result.critical_hit
-                    )
-                
-                # Flash target
-                target_view.take_damage_animation()
-                
-                # Update health bar
-                target_view.update_health_bar()
-                
-                # If killed, play death animation
-                if result.unit_killed:
-                    target_view.death_animation()
-        
-        elif result.action.action_type == ActionType.ABILITY:
-            unit_view.ability_animation()
-            if self.effects and result.action.target_position:
-                world_pos = self.battlefield_view.grid_to_world(
-                    result.action.target_position.x,
-                    result.action.target_position.y
-                )
-                self.effects.play_ability_effect(
-                    world_pos,
-                    result.action.ability_type
-                )
-        
-        # Update UI
-        if self.ui_overlay:
-            self.ui_overlay.update_stats()
-            self.ui_overlay.add_action_log(result.message)
+        self._pending_events.put(("action_executed", state, result))
     
     def _on_turn_start(self, state: GameState):
         """Handle turn start"""
-        if self.ui_overlay:
-            self.ui_overlay.show_turn_indicator(state.current_team.team)
+        self._pending_events.put(("turn_start", state))
     
     def _on_turn_end(self, state: GameState):
         """Handle turn end"""
@@ -261,18 +211,88 @@ class GameRenderer:
     
     def _on_game_over(self, result):
         """Handle game over"""
-        if self.ui_overlay:
-            self.ui_overlay.show_game_over(result)
+        self._pending_events.put(("game_over", result))
     
     def _on_ai_thinking(self, agent):
         """Handle AI thinking state"""
-        if self.ui_overlay:
-            self.ui_overlay.show_thinking(agent)
+        self._pending_events.put(("ai_thinking", agent))
     
     def _on_ai_decision(self, decision: 'AIDecision'):
         """Handle AI decision made"""
-        if self.ui_overlay:
-            self.ui_overlay.show_decision(decision)
+        self._pending_events.put(("ai_decision", decision))
+
+    def _process_pending_events(self):
+        """Process queued game events on the main Ursina thread"""
+        from core.game_state import ActionType
+
+        while not self._pending_events.empty():
+            event = self._pending_events.get_nowait()
+            event_type = event[0]
+
+            if event_type == "ai_decision":
+                _, decision = event
+                if self.ui_overlay:
+                    self.ui_overlay.show_decision(decision)
+
+            elif event_type == "ai_thinking":
+                _, agent = event
+                if self.ui_overlay:
+                    self.ui_overlay.show_thinking(agent)
+
+            elif event_type == "turn_start":
+                _, state = event
+                if self.ui_overlay:
+                    self.ui_overlay.show_turn_indicator(state.current_team.team)
+
+            elif event_type == "game_over":
+                _, result = event
+                if self.ui_overlay:
+                    self.ui_overlay.show_game_over(result)
+
+            elif event_type == "action_executed":
+                _, state, result = event
+                unit_view = self.unit_views.get(result.action.unit_id)
+                if not unit_view:
+                    continue
+
+                if result.action.action_type == ActionType.MOVE:
+                    target = result.action.target_position
+                    world_pos = self.battlefield_view.grid_to_world(target.x, target.y)
+                    unit_view.move_to(world_pos, duration=0.3)
+
+                elif result.action.action_type == ActionType.ATTACK:
+                    target_view = self.unit_views.get(result.action.target_unit_id)
+                    if target_view:
+                        unit_view.attack_animation(target_view)
+
+                        if self.effects:
+                            self.effects.show_damage(
+                                target_view.entity.position + Vec3(0, 2, 0),
+                                result.damage_dealt,
+                                result.critical_hit
+                            )
+
+                        target_view.take_damage_animation()
+                        target_view.update_health_bar()
+
+                        if result.unit_killed:
+                            target_view.death_animation()
+
+                elif result.action.action_type == ActionType.ABILITY:
+                    unit_view.ability_animation()
+                    if self.effects and result.action.target_position:
+                        world_pos = self.battlefield_view.grid_to_world(
+                            result.action.target_position.x,
+                            result.action.target_position.y
+                        )
+                        self.effects.play_ability_effect(
+                            world_pos,
+                            result.action.ability_type
+                        )
+
+                if self.ui_overlay:
+                    self.ui_overlay.update_stats()
+                    self.ui_overlay.add_action_log(result.message)
     
     def _update_camera(self):
         """Update camera position"""
@@ -288,6 +308,8 @@ class GameRenderer:
     
     def update(self):
         """Called every frame - handle input and animations"""
+        self._process_pending_events()
+
         # Camera controls
         self._handle_camera_input()
         

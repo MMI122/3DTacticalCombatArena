@@ -70,10 +70,12 @@ HTML_PAGE = r"""<!DOCTYPE html>
   .node.explored { border-color:var(--explored); background:var(--explored-bg); }
   .node.discarded { border-color:var(--discarded); background:var(--discarded-bg); opacity:0.75; }
 
+  .node .node-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .node .label-wrap { min-width:0; flex:1; }
   .node .status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; vertical-align:middle; }
-  .node .action-label { font-size:13px; font-weight:600; line-height:1.3; }
+  .node .action-label { font-size:13px; font-weight:600; line-height:1.3; word-break:break-word; overflow-wrap:anywhere; }
   .node .detail { font-size:11px; color:var(--text-dim); margin-top:4px; }
-  .node .score { position:absolute; top:10px; right:12px; font-family:'Consolas',monospace; font-size:13px; font-weight:700; }
+  .node .score { font-family:'Consolas',monospace; font-size:13px; font-weight:700; white-space:nowrap; margin-top:1px; }
   .node .status-tag { font-size:10px; margin-top:6px; font-weight:600; }
   .node.root { min-width:220px; border-width:2px; }
 
@@ -196,8 +198,12 @@ function renderNode(node, isRoot) {
   const tag = statusTag(node.status);
 
   return '<div class="node '+cls+(isRoot?' root':'')+'">'
-    +'<span class="score" style="color:'+scoreColor(node.score)+'">'+fmtScore(node.score)+'</span>'
-    +'<div class="action-label"><span class="status-dot" style="background:'+dotCol+'"></span>'+esc(label)+'</div>'
+    +'<div class="node-head">'
+      +'<div class="label-wrap">'
+        +'<div class="action-label"><span class="status-dot" style="background:'+dotCol+'"></span>'+esc(label)+'</div>'
+      +'</div>'
+      +'<span class="score" style="color:'+scoreColor(node.score)+'">'+fmtScore(node.score)+'</span>'
+    +'</div>'
     +'<div class="detail">'+esc(detail)+'</div>'
     +(tag?'<div class="status-tag" style="color:'+dotCol+'">'+tag+'</div>':'')
     +'</div>';

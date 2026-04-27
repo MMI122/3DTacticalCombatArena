@@ -385,13 +385,31 @@ class UIOverlay:
             origin=(0, 0),
             color=color.white
         )
+
+        if result.end_reason == 'timeout_score':
+            reason_text = 'Ended by 3-minute timeout: winner decided by team score'
+        elif result.end_reason == 'turn_limit_score':
+            reason_text = 'Ended by max turns: winner decided by team score'
+        elif result.end_reason == 'elimination':
+            reason_text = 'Ended by elimination'
+        else:
+            reason_text = 'Match ended'
+
+        self.end_reason_text = Text(
+            text=reason_text,
+            parent=self.game_over_panel,
+            position=(0, 0.1),
+            scale=1.2,
+            origin=(0, 0),
+            color=color.Color(0.7, 0.7, 0.7, 1.0)
+        )
         
         # Stats
         stats_text = (
             f"Total Turns: {result.total_turns}\n"
             f"Duration: {result.duration_seconds:.1f}s\n\n"
-            f"🔴 Red: {result.red_units_remaining} units, {result.red_total_damage} damage dealt\n"
-            f"🔵 Blue: {result.blue_units_remaining} units, {result.blue_total_damage} damage dealt"
+            f"🔴 Red: {result.red_units_remaining} units, {result.red_total_damage} damage, score {result.red_match_score:.1f}\n"
+            f"🔵 Blue: {result.blue_units_remaining} units, {result.blue_total_damage} damage, score {result.blue_match_score:.1f}"
         )
         
         self.stats_summary = Text(
