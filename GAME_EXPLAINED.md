@@ -264,14 +264,14 @@ On WATER (Cost: ∞):
 ### 3.4 Terrain Overview
 
 ```
-┌──────┬──────┬──────┬──────┬──────┐
-│ ROAD │PLAIN │FOREST│ HILL │WATER │
-│ ──── │  🟩  │  🌲  │  🏔️  │  💧  │
-├──────┼──────┼──────┼──────┼──────┤
-│DEF -1│DEF +0│DEF +2│DEF +1│ N/A  │
-│ATK +0│ATK +0│ATK +0│ATK +1│ N/A  │
-│MOVE ½│MOVE 1│MOVE 2│MOVE 2│BLOCK │
-└──────┴──────┴──────┴──────┴──────┘
+┌───────┬───────┬────────┬────────┬────────┬────────┬───────┬───────┐
+│ ROAD  │PLAIN  │ FOREST │  HILL  │ RUINS  │ WATER  │ MOUNT │BRIDGE │
+│ ──── │  🟩   │  🌲   │  🏔️   │ 🏚️    │  💧   │ ⛰️   │ 🌉   │
+├───────┼───────┼────────┼────────┼────────┼────────┼───────┼───────┤
+│DEF -1 │DEF +0 │ DEF +2 │ DEF +1 │DEF +3 │  N/A   │ N/A   │DEF +0 │
+│ATK +0 │ATK +0 │ ATK +0 │ ATK +1 │ATK +0 │  N/A   │ N/A   │ATK +0 │
+│MOVE ½ │MOVE 1 │MOVE 2  │MOVE 2  │MOVE 1 │BLOCKED │BLOCKED│MOVE 1 │
+└───────┴───────┴────────┴────────┴────────┴────────┴───────┴───────┘
 ```
 
 ---
@@ -280,16 +280,62 @@ On WATER (Cost: ∞):
 
 | Terrain | Best For | Why |
 |---------|----------|-----|
-| **Road** | Rushing | Move fast, but exposed (DEF -1) |
-| **Plain** | Normal combat | No bonuses, no penalties |
+| **Road** | Rushing | Move fast (½ cost), but exposed (DEF -1) |
+| **Plain** | Normal combat | No bonuses, no penalties, neutral |
 | **Forest** | Archers hiding | +2 DEF, blocks enemy shots! |
 | **Hill** | Sniping | +1 ATK, +1 DEF, great for archers |
 | **Ruins** | Tanks defending | +3 DEF, best cover in game |
-| **Water** | Blocking paths | Nobody can cross! |
+| **Water** | Blocking paths | Nobody can cross! Impassable barrier |
+| **Mountain** | Natural walls | Impassable, blocks line of sight (defensive barrier) |
+| **Bridge** | Crossing water | Normal movement, connects over water |
 
 ---
 
-### 3.6 Real Battle Example
+### 3.5b New Terrain Types Explained
+
+#### Mountain (⛰️)
+
+```
+Blocks ALL movement and line of sight!
+
+┌───┬───┬───┬───┬───┐
+│🔴 │   │ ⛰️ │   │🔵 │
+│   │   │ ⛰️ │   │   │  Red and Blue CANNOT cross!
+│   │   │ ⛰️ │   │   │  Cannot shoot through either!
+└───┴───┴───┴───┴───┘
+
+Strategy: Creates "lanes" that teams must fight in.
+```
+
+#### Ruins (🏚️)
+
+```
+Best defensive terrain! +3 DEF (most in game!)
+
+Before (on Plain):           After (in Ruins):
+Defense = 20                 Defense = 20 + 3 = 23
+Takes 30 - 20 = 10 damage    Takes 30 - 23 = 7 damage
+
+Strategy: Move tanks here to become nearly invulnerable!
+```
+
+#### Bridge (🌉)
+
+```
+Crosses over water safely!
+
+┌───┬───┬───┬───┬───┐
+│🔴 │💧│ 🌉│💧│🔵 │
+│   │💧│   │💧│   │  Bridge allows passage
+└───┴───┴───┴───┴───┘
+
+Strategy: Key control point - whoever holds bridge
+          can block enemy crossing!
+```
+
+---
+
+### 3.7 Real Battle Example
 
 ```
 Situation:
@@ -489,18 +535,19 @@ CRITICAL HIT! 💥
 ### 5.3 How It Works
 
 ```
-Every attack has a RANDOM chance to crit
+Every attack has a RANDOM chance to crit (depends on unit type)
 
-┌─────────────────────────────────────┐
-│          ATTACK ROLL                │
-│                                     │
-│   🎲 Roll dice...                   │
-│                                     │
-│   90% chance → Normal hit           │
-│   10% chance → CRITICAL HIT! 💥     │
-│                                     │
-│   If crit: Damage × 1.5             │
-└─────────────────────────────────────┘
+┌──────────┬────────────────────────────────┐
+│ Unit     │   Critical Hit Chance          │
+├──────────┼────────────────────────────────┤
+│ Warrior  │   10% ████████████████░░░░░░░░ │
+│ Archer   │   25% ████████████████████░░░░ │  ← Best!
+│ Mage     │   15% ██████████████░░░░░░░░░░ │
+│ Knight   │   20% ████████████████░░░░░░░░ │
+│ Healer   │    5% ██░░░░░░░░░░░░░░░░░░░░░░ │  ← Worst
+└──────────┴────────────────────────────────┘
+
+If crit lands: Damage × 1.5 (50% bonus!)
 ```
 
 ---
@@ -545,7 +592,8 @@ Or if Archer has 30 HP:
 |------|---------|
 | **Critical Hit** | Random lucky hit |
 | **Effect** | 1.5× normal damage (50% bonus) |
-| **Chance** | ~10% per attack |
+| **Chance** | Varies by unit (5%-25% per attack) |
+| **Unit chances** | Warrior 10%, Archer 25%, Mage 15%, Knight 20%, Healer 5% |
 | **Why it matters** | Can turn battles! Kill units you couldn't normally |
 
 It adds **randomness and excitement** to combat - sometimes the underdog gets lucky! 🍀
@@ -1591,20 +1639,250 @@ AI thinks:
 
 ---
 
+## 11. Match Timeout and Scoring System
+
+Normally, a match ends when one team **eliminates** all enemies. But what if the battle drags on FOREVER? That's where the **timeout system** comes in!
+
+---
+
+### 11.1 The 3-Minute Timeout Rule
+
+```
+⏱️  MATCH DURATION: 3 MINUTES (180 seconds)
+
+If neither team wins by then:
+  → Battle auto-ends
+  → Winner determined by MATCH SCORE (explained below!)
+```
+
+**Why this rule?**
+- Prevents infinite stalemates where both teams are evenly matched
+- Encourages aggressive play (you can't just hide!)
+- Fair way to decide winner when battle is deadlocked
+
+---
+
+### 11.2 Match Scoring Formula
+
+When the 3-minute timer expires, the **winner is NOT determined by elimination** but by a **special MATCH SCORE**.
+
+```
+┌──────────────────────────────────────────┐
+│           MATCH SCORE FORMULA            │
+├──────────────────────────────────────────┤
+│                                          │
+│ Score = (Units × 1000)                  │
+│       + (Total HP × 2)                  │
+│       + (Kills × 300)                   │
+│       + (Damage Dealt × 1)              │
+│                                          │
+└──────────────────────────────────────────┘
+```
+
+**Breaking it down:**
+
+| Component | Points | Reason |
+|-----------|--------|--------|
+| **Each unit still alive** | ×1000 | HUGE! Keeping units alive is most important |
+| **Each HP remaining** | ×2 | Every health point counts |
+| **Each enemy killed** | ×300 | Kills show offensive power |
+| **Each damage dealt** | ×1 | Damage dealt (even if they survived) counts too |
+
+---
+
+### 11.3 Match Score Example
+
+```
+AFTER 3 MINUTES:
+
+🔴 RED TEAM:
+  Units alive: 2 (2 × 1000 = 2000 points)
+  Total HP remaining: 150 + 80 = 230 HP (230 × 2 = 460 points)
+  Enemies killed: 2 (2 × 300 = 600 points)
+  Damage dealt: 1500 (1500 × 1 = 1500 points)
+  ─────────────────────────────
+  TOTAL: 2000 + 460 + 600 + 1500 = 4560 points 🔴
+
+🔵 BLUE TEAM:
+  Units alive: 3 (3 × 1000 = 3000 points)
+  Total HP remaining: 100 + 90 + 75 = 265 HP (265 × 2 = 530 points)
+  Enemies killed: 1 (1 × 300 = 300 points)
+  Damage dealt: 1200 (1200 × 1 = 1200 points)
+  ─────────────────────────────
+  TOTAL: 3000 + 530 + 300 + 1200 = 5030 points 🔵
+
+┌──────────────────────────────────────────┐
+│  🔵 BLUE WINS!  5030 > 4560               │
+│  (Better survival rate!)                  │
+└──────────────────────────────────────────┘
+```
+
+---
+
+### 11.4 Why This Formula?
+
+```
+        IMPORTANCE RANKING
+        
+Units alive (1000 each) ████████████████████  HUGE!
+Kills (300 each)         ████████             Important
+Total HP (2 each)        ██                   Multiplier adds up
+Damage dealt (1 each)    █                    Tiebreaker
+```
+
+**Why units are worth 1000?**
+```
+Each unit = PERMANENT advantage
+
+A living unit can:
+  ✓ Attack enemies next turn
+  ✓ Heal allies
+  ✓ Block attacks
+  ✓ Threaten enemy positions
+
+A dead unit can do NONE of that!
+
+So: Keeping your team alive >> Everything else
+```
+
+---
+
+### 11.5 Tactical Implications
+
+```
+NORMAL ELIMINATION MODE:
+  Red thinks: "I have 4 units left, they have 1.
+              I'm winning! Can take my time..."
+  Result: Battle takes 20 more turns
+
+TIMEOUT MODE:
+  Red thinks: "Timer at 2:50! I need HIGH SCORE!
+              I have 4 units × 1000 = 4000 points
+              I should heal my units (+2 per HP!)
+              OR kill that last unit (+300 bonus)"
+  Result: RED AGGRESSIVE! Pushes to finish it!
+```
+
+---
+
+### 11.6 Match End Conditions (Summary)
+
+```
+                    MATCH START
+                          │
+                          ▼
+                  ┌─────────────────┐
+                  │ During battle   │
+                  │ (0-3 minutes)   │
+                  └────────┬────────┘
+                           │
+                   ┌───────┴────────┐
+                   │                │
+                   ▼                ▼
+            ┌──────────────┐  ┌──────────────┐
+            │One team      │  │ 3 minutes    │
+            │ ELIMINATED   │  │  up!         │
+            └──────┬───────┘  └──────┬───────┘
+                   │                │
+                   ▼                ▼
+            RED team wins      Compare MATCH SCORES
+            (all blues dead)   (not elimination scores!)
+                                │
+                        ┌───────┴────────┐
+                        │                │
+                        ▼                ▼
+                    RED wins         BLUE wins
+                   (higher       (higher
+                    score)        score)
+```
+
+---
+
+### 11.7 Real-Time Example
+
+```
+TIME: 2:45 remaining
+
+Red Minimax AI: "I have 4 units, they have 3.
+                My current match score: 4500
+                Their match score: 3800
+                I'm winning by 700 points!
+                
+                I should:
+                1. Heal my low-HP units (gain +2 per HP!)
+                2. Eliminate 1 blue unit (gain +300!)
+                3. Keep my units alive (protect them!)"
+
+TIME: 2:55 - TIMEOUT!
+
+Red Score: 4800 (healed, got 1 kill)
+Blue Score: 3500 (took damage)
+
+🔴 RED TEAM WINS by timeout score!
+```
+
+---
+
+### 11.8 Strategy Difference
+
+```
+WITHOUT TIMEOUT:
+  "If we're ahead, we can play defensively
+   and never risk losing. Perfect stalemate!"
+  → Boring, endless games possible
+
+WITH TIMEOUT:
+  "If we're ahead, we should push for kills
+   before timer runs out!"
+  → Encourages action, shorter matches
+```
+
+---
+
+### 11.9 Tied Scores?
+
+```
+If both teams have SAME match score at timeout:
+
+Red: 5000 points
+Blue: 5000 points
+
+┌──────────────────────┐
+│   MATCH DRAW! 🤝    │
+│                      │
+│ Neither team wins    │
+└──────────────────────┘
+```
+
+---
+
+### 11.10 TL;DR
+
+| Concept | Meaning |
+|---------|---------|
+| **Timeout** | 3-minute timer, prevents endless matches |
+| **Match Score** | Determines winner if timer expires |
+| **Score formula** | (Units×1000) + (HP×2) + (Kills×300) + (Damage×1) |
+| **Highest value** | Units alive (1000 each) → Keep team together! |
+| **Strategy** | At timeout, teams prioritize killing & healing |
+
+---
+
 ## Summary
 
 This document covered:
 
 1. **Turn System** - Each unit moves then attacks
 2. **Unit Stats** - HP, Attack, Defense, Range, Movement, Role
-3. **Terrain** - Defense bonus, Attack bonus, Movement cost
+3. **Terrain** - 8 types with defense bonus, attack bonus, movement cost
 4. **Combat Formula** - Attack - Defense = Damage (min 1)
-5. **Critical Hits** - 10% chance for 1.5x damage
+5. **Critical Hits** - 5%-25% chance (varies by unit) for 1.5x damage
 6. **AI Decision Process** - Minimax (calculator) vs Fuzzy (human-like)
 7. **Score System** - Numbers showing how good a position is
 8. **Why Scoring** - Guides AI toward winning
 9. **Evaluation Components** - 7 factors that make up the score
 10. **Special Abilities** - Powerful moves with cooldowns
+11. **Match Timeout System** - 3-minute timer, winner by match score formula
 
 ---
 
