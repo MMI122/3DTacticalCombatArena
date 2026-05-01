@@ -32,7 +32,7 @@ desktop.ini
 *.pdf
 
 # README (will be added later)
-
+convert_to_docx.py
 
 # Environment variables
 .env
